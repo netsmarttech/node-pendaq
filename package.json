@@ -1,0 +1,29 @@
+{
+  "name": "node-pendaq",
+  "version": "1.0.0",
+  "description": "An interface library to Smart-Tech's PenDAq",
+  "main": "index.js",
+  "dependencies": {
+    "usb": "^1.0.6"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/netsmarttech/node-pendaq.git"
+  },
+  "keywords": [
+    "pendaq",
+    "daq",
+    "data",
+    "aquisition"
+  ],
+  "author": "Smart-Tech",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/netsmarttech/node-pendaq/issues"
+  },
+  "homepage": "https://github.com/netsmarttech/node-pendaq#readme"
+}
