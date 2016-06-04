@@ -1,3 +1,19 @@
+/*
+   Copyright 2016 Smart-Tech Controle e Automação
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 'use strict';
 
 var util = require('util');
@@ -72,17 +88,17 @@ const ENDPOINT_DATA_OUT = 0x02;
  */
 function PenDaq(device) {
 
-  if (!dev || !dev.deviceDescriptor) throw new TypeError("Expected a usb device");
+  if (!device || !device.deviceDescriptor) throw new TypeError("Expected a usb device");
 
   //init vars:
-  this.device = device;
-  this.isOpen = false;
-  this.isRunning = false;
-  this.iface_ctl;
-  this.iface_data;
-  this.endpoint_ctl;
-  this.endpoint_dataIn;
-  this.endpoint_dataOut;
+  this._device = device;
+  this._isOpen = false;
+  this._isRunning = false;
+  this._iface_ctl;
+  this._iface_data;
+  this._endpoint_ctl;
+  this._endpoint_dataIn;
+  this._endpoint_dataOut;
 
   events.call(this);
 }
@@ -98,39 +114,43 @@ util.inherits(PenDaq, events);
  * @fires PenDaq#open
  */
 PenDaq.prototype.open = function open(cb) {
-  if (this.isOpen) {
+  if (this._isOpen) {
     return;
   }
 
   try {
-    this.device.open();
+    this._device.open();
 
-    this.iface_ctl = this.device.interface(IFACE_CTL);
-    this.iface_data = this.device.interface(IFACE_DATA);
+    this._iface_ctl = this._device.interface(IFACE_CTL);
+    this._iface_data = this._device.interface(IFACE_DATA);
 
-    this.iface_ctl.detachKernelDriver();
+    /*
+    if(this._iface_ctl.isKernelDriverActive()){
+      this._iface_ctl.detachKernelDriver();
+    }
+    //*/
 
-    this.endpoint_ctl = this.iface_ctl.endpoint(ENDPOINT_CTL);
-    this.endpoint_dataIn = this.iface_data.endpoint(ENDPOINT_DATA_IN);
-    this.endpoint_dataOut = this.iface_data.endpoint(ENDPOINT_DATA_OUT);
+    this._endpoint_ctl = this._iface_ctl.endpoint(ENDPOINT_CTL);
+    this._endpoint_dataIn = this._iface_data.endpoint(ENDPOINT_DATA_IN);
+    this._endpoint_dataOut = this._iface_data.endpoint(ENDPOINT_DATA_OUT);
 
-    this.iface_ctl.claim();
-    this.iface_data.claim();
+    this._iface_ctl.claim();
+    this._iface_data.claim();
 
     //set error listeners
-    this.endpoint_ctl.on('error', this.on.bind(this, 'error'));
-    this.endpoint_dataIn.on('error', this.on.bind(this, 'error'));
-    this.endpoint_dataOut.on('error', this.on.bind(this, 'error'));
+    this._endpoint_ctl.on('error', this.on.bind(this, 'error'));
+    this._endpoint_dataIn.on('error', this.on.bind(this, 'error'));
+    this._endpoint_dataOut.on('error', this.on.bind(this, 'error'));
 
     //set data listener
-    this.endpoint_dataIn.on('data', function incomingData(data) {
+    this._endpoint_dataIn.on('data', function incomingData(data) {
       this.emit('rawdata', data);
-      this.onRawData(data);
+      this._onRawData(data);
     }.bind(this));
 
-    this.endpoint_dataIn.startPoll();
+    this._endpoint_dataIn.startPoll();
 
-    this.isOpen = true;
+    this._isOpen = true;
 
     emitOnce('open', cb, this);
   } catch (err) {
@@ -150,12 +170,12 @@ PenDaq.prototype.open = function open(cb) {
 PenDaq.prototype.close = function close(cb) {
   var self = this;
 
-  if (!this.isOpen) {
+  if (!this._isOpen) {
     return;
   }
 
   //if the capture is running, first stop and then call us again
-  if (this.isRunning) {
+  if (this._isRunning) {
     this.stop(function(err) {
       if (!callbackError(err, cb, err, self)) {
         self.close(cb);
@@ -166,21 +186,25 @@ PenDaq.prototype.close = function close(cb) {
 
   try {
     //this will automatically stop polling
-    this.iface_data.release(true, function(err) {
+    this._iface_data.release(true, function(err) {
       if (err) {
         self.emit('error', err);
         return;
       }
 
-      self.iface_ctl.release(true, function(err) {
+      self._iface_ctl.release(true, function(err) {
         if (err) {
           self.emit('error', err);
           return;
         }
 
-        self.iface_ctl.attachKernelDriver();
-        self.device.close();
-        self.isOpen = false;
+        /*
+        if(!self._iface_ctl.isKernelDriverActive()){
+          self._iface_ctl.attachKernelDriver();
+        }
+        //*/
+        self._device.close();
+        self._isOpen = false;
 
         emitOnce('close', cb, self);
       });
@@ -200,14 +224,14 @@ PenDaq.prototype.close = function close(cb) {
 PenDaq.prototype.start = function start(cb) {
   var self = this;
 
-  if (callbackError(!this.isOpen, cb, new Error("The device must be opened before"))) return;
+  if (callbackError(!this._isOpen, cb, new Error("The device must be opened before"))) return;
 
   //SET CONTROL LINE STATE(0x22) request, as per USB CDC/ACM specification
   //0b11: Activate carrier; DTE present
-  this.device.controlTransfer(0x21, 0x22, 3, 0, new Buffer(0), function(err) {
+  this._device.controlTransfer(0x21, 0x22, 3, 0, new Buffer(0), function(err) {
     if (!callbackError(err, cb, err, self)) {
 
-      self.isRunning = true;
+      self._isRunning = true;
       emitOnce('start', cb, self);
     }
   });
@@ -222,16 +246,16 @@ PenDaq.prototype.start = function start(cb) {
 PenDaq.prototype.stop = function stop(cb) {
   var self = this;
 
-  if (callbackError(!this.isOpen, cb, new Error("The device must be opened before"))) {
+  if (callbackError(!this._isOpen, cb, new Error("The device must be opened before"))) {
     return;
   }
 
   //SET CONTROL LINE STATE(0x22) request, as per USB CDC/ACM specification
   //0b00: Deactivate carrier; DTE not present
-  this.device.controlTransfer(0x21, 0x22, 0, 0, new Buffer(0), function(err) {
+  this._device.controlTransfer(0x21, 0x22, 0, 0, new Buffer(0), function(err) {
     if (!callbackError(err, cb, err, self)) {
 
-      self.isRunning = false;
+      self._isRunning = false;
       emitOnce('stop', cb, self);
     }
   });
@@ -245,13 +269,18 @@ PenDaq.prototype.stop = function stop(cb) {
  * @param  {[type]} data the Buffer containing raw binary data from the device
  * @fires PenDaq#data
  */
-PenDaq.prototype.onRawData = function(data) {
+PenDaq.prototype._onRawData = function(data) {
   var i, an1, an2, an3, an4, chksum;
 
   if (!(data instanceof Buffer)) throw new TypeError("parameter must be of type Buffer");
 
+  //console.log('oRD:', data.toString('hex'));
+
   //parse buffer
   for (i = 0; i < data.length;) {
+
+    if(i + 9 > data.length) break;
+
     an1 = data.readUInt16LE(i);
     i += 2;
     an2 = data.readUInt16LE(i);
@@ -293,7 +322,7 @@ PenDaq.prototype.onRawData = function(data) {
 PenDaq.prototype.getManufacturer = function(callback) {
   if (!callback || typeof callback !== 'function') return;
 
-  device.getStringDescriptor(device.deviceDescriptor.iManufacturer, callback);
+  this._device.getStringDescriptor(this._device.deviceDescriptor.iManufacturer, callback);
 };
 
 /**
@@ -306,7 +335,7 @@ PenDaq.prototype.getManufacturer = function(callback) {
 PenDaq.prototype.getProductName = function(callback) {
   if (!callback || typeof callback !== 'function') return;
 
-  device.getStringDescriptor(device.deviceDescriptor.iProduct, callback);
+  this._device.getStringDescriptor(this._device.deviceDescriptor.iProduct, callback);
 };
 
 
@@ -320,7 +349,7 @@ PenDaq.prototype.getProductName = function(callback) {
 PenDaq.prototype.getSerialNumber = function(callback) {
   if (!callback || typeof callback !== 'function') return;
 
-  device.getStringDescriptor(device.deviceDescriptor.iSerialNumber, callback);
+  this._device.getStringDescriptor(this._device.deviceDescriptor.iSerialNumber, callback);
 };
 
 module.exports = PenDaq;
