@@ -138,9 +138,9 @@ PenDaq.prototype.open = function open(cb) {
     this._iface_data.claim();
 
     //set error listeners
-    this._endpoint_ctl.on('error', this.on.bind(this, 'error'));
-    this._endpoint_dataIn.on('error', this.on.bind(this, 'error'));
-    this._endpoint_dataOut.on('error', this.on.bind(this, 'error'));
+    this._endpoint_ctl.on('error', this.emit.bind(this, 'error'));
+    this._endpoint_dataIn.on('error', this.emit.bind(this, 'error'));
+    this._endpoint_dataOut.on('error', this.emit.bind(this, 'error'));
 
     //set data listener
     this._endpoint_dataIn.on('data', function incomingData(data) {
