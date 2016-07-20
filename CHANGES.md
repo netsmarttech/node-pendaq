@@ -1,3 +1,7 @@
+Version: 0.2.2
+------------
+- [BUGFIX] Try to detach kernel driver before open and retach after close on linux, avoids LIBUSB_ERROR_BUSY
+
 Version: 0.2.1
 ------------
 - [BUGFIX] Errors from libusb are now properly forwarded

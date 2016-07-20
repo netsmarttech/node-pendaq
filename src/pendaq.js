@@ -124,8 +124,8 @@ PenDaq.prototype.open = function open(cb) {
     this._iface_ctl = this._device.interface(IFACE_CTL);
     this._iface_data = this._device.interface(IFACE_DATA);
 
-    /*
-    if(this._iface_ctl.isKernelDriverActive()){
+    //*
+    if(process.platform == 'linux' && this._iface_ctl.isKernelDriverActive()){
       this._iface_ctl.detachKernelDriver();
     }
     //*/
@@ -198,8 +198,8 @@ PenDaq.prototype.close = function close(cb) {
           return;
         }
 
-        /*
-        if(!self._iface_ctl.isKernelDriverActive()){
+        //*
+        if(process.platform == 'linux' && !self._iface_ctl.isKernelDriverActive()){
           self._iface_ctl.attachKernelDriver();
         }
         //*/
