@@ -92,7 +92,7 @@ function checkRemoveDevice(dev) {
 
   for (i = 0; i < devices.length; i++) {
     if (matchDeviceAddresses(devices[i]._device, dev)) {
-
+      devices[i]._onDisconnect();
       devices.splice(i, 1); //removes from array
       ee.emit('disconnected', devices[i]);
 

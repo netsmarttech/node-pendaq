@@ -94,6 +94,7 @@ function PenDaq(device) {
   this._device = device;
   this._isOpen = false;
   this._isRunning = false;
+  this._isConnected = true;
   this._iface_ctl;
   this._iface_data;
   this._endpoint_ctl;
@@ -114,7 +115,7 @@ util.inherits(PenDaq, events);
  * @fires PenDaq#open
  */
 PenDaq.prototype.open = function open(cb) {
-  if (this._isOpen) {
+  if (this._isOpen || !this._isConnected) {
     return;
   }
 
@@ -170,8 +171,9 @@ PenDaq.prototype.open = function open(cb) {
 PenDaq.prototype.close = function close(cb) {
   var self = this;
 
-  if (!this._isOpen) {
-    return;
+  if (!this._isOpen || !this._isConnected) {
+    emitOnce('close', cb, self);
+	return;
   }
 
   //if the capture is running, first stop and then call us again
@@ -225,6 +227,7 @@ PenDaq.prototype.start = function start(cb) {
   var self = this;
 
   if (callbackError(!this._isOpen, cb, new Error("The device must be opened before"))) return;
+  if (callbackError(!this._isConnected, cb, new Error("Device not connected"))) return;
 
   //SET CONTROL LINE STATE(0x22) request, as per USB CDC/ACM specification
   //0b11: Activate carrier; DTE present
@@ -249,6 +252,7 @@ PenDaq.prototype.stop = function stop(cb) {
   if (callbackError(!this._isOpen, cb, new Error("The device must be opened before"))) {
     return;
   }
+  if (callbackError(!this._isConnected, cb, new Error("Device not connected"))) return;
 
   //SET CONTROL LINE STATE(0x22) request, as per USB CDC/ACM specification
   //0b00: Deactivate carrier; DTE not present
@@ -259,6 +263,18 @@ PenDaq.prototype.stop = function stop(cb) {
       emitOnce('stop', cb, self);
     }
   });
+}
+
+/**
+ * This function is called by the underlying usb stack when the deivce is removed
+ * it shouldn't be called externally.
+ *
+ * @method function
+ * @fires PenDaq#disconnected
+ */
+PenDaq.prototype._onDisconnect = function(){
+  this._isConnected = false
+  this.emit('disconnected');
 }
 
 /**
